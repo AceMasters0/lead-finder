@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lead Finder">
+<meta name="theme-color" content="#111418">
+<title>Lead Finder</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%232e7d32'/%3E%3Ccircle cx='32' cy='28' r='10' fill='white'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232e7d32'/%3E%3Ccircle cx='32' cy='28' r='11' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#111418;--panel:#1b2026;--panel2:#242b33;--line:#2f3842;--text:#e9edf1;--muted:#98a4b1;
+  --t1:#2ecc71;--t2:#4aa3ff;--t3:#8a97a6;--accent:#ffb020;--danger:#ff5d5d;--ok:#2ecc71;
+  --radius:14px;--pad:12px;--safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:var(--panel2);border-radius:10px;padding:9px 12px}
+button.primary{background:var(--t1);color:#07130b;font-weight:600}
+button.ghost{background:transparent;border:1px solid var(--line)}
+button:disabled{opacity:.5}
+a{color:var(--t2)}
+#app{display:flex;flex-direction:column;height:100%;padding-top:var(--safe-top)}
+
+/* top bar */
+#top{display:flex;gap:8px;align-items:center;padding:8px var(--pad);background:var(--panel);border-bottom:1px solid var(--line);z-index:5}
+#top .brand{font-weight:700;letter-spacing:.2px;white-space:nowrap}
+#search{flex:1;min-width:0;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 12px;outline:none}
+#count{color:var(--muted);font-size:13px;white-space:nowrap}
+
+/* control strip */
+#strip{display:flex;gap:8px;align-items:center;padding:8px var(--pad);background:var(--panel);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap;z-index:5}
+#strip::-webkit-scrollbar{display:none}
+.seg{display:inline-flex;background:var(--panel2);border-radius:10px;padding:3px}
+.seg button{background:transparent;padding:6px 12px;border-radius:8px;color:var(--muted)}
+.seg button.on{background:var(--panel);color:var(--text)}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:14px;white-space:nowrap}
+.chip.on{background:var(--t1);border-color:var(--t1);color:#07130b;font-weight:600}
+.chip.warn{background:var(--accent);border-color:var(--accent);color:#1a1200;font-weight:600}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+/* main */
+#main{flex:1;position:relative;min-height:0}
+#map{position:absolute;inset:0;background:#0b0e12}
+#list{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px var(--pad) calc(90px + var(--safe-bot));display:none}
+#main.list #list{display:block}
+#main.list #map{visibility:hidden}
+.item{display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px;align-items:flex-start}
+.item .pin{flex:0 0 auto;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#07130b;margin-top:2px}
+.item .body{flex:1;min-width:0}
+.item .name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .sub{color:var(--muted);font-size:13px;margin-top:2px}
+.item .meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;padding:3px 8px;border-radius:7px;background:var(--panel2);color:var(--muted)}
+.tag.st{color:var(--text)}
+.tag.st-Visited{background:#1f4d33;color:#9be3b6}.tag.st-Interested{background:#4d3a10;color:#ffd27a}.tag.st-Follow-up{background:#3a2f66;color:#cbb8ff}.tag.st-Signed{background:#0f4a3f;color:#7fe6c9}.tag.st-Dead{background:#4d1f1f;color:#ff9a9a}
+.item .dist{flex:0 0 auto;text-align:right;color:var(--muted);font-size:13px}
+.item .dist b{display:block;color:var(--text);font-size:17px}
+.item .rt{margin-top:6px;width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background:transparent;padding:0;color:var(--text)}
+.item .rt.on{background:var(--accent);border-color:var(--accent);color:#1a1200}
+.empty{color:var(--muted);text-align:center;padding:40px 20px}
+
+/* floating map buttons */
+#fabs{position:absolute;right:12px;bottom:calc(16px + var(--safe-bot));display:flex;flex-direction:column;gap:10px;z-index:4}
+#fabs button{width:48px;height:48px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#areaBtn{position:absolute;left:50%;transform:translateX(-50%);top:12px;z-index:4;background:var(--panel);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.4);display:none}
+#main.map #areaBtn.show{display:block}
+
+/* route bar */
+#routebar{position:absolute;left:12px;right:72px;bottom:calc(16px + var(--safe-bot));z-index:4;display:none;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--accent);border-radius:12px;padding:8px 10px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#routebar.show{display:flex}
+#routebar span{flex:1;font-size:14px}
+
+/* sheets */
+.sheet{position:absolute;left:0;right:0;bottom:0;max-height:88%;background:var(--panel);border-top:1px solid var(--line);border-radius:18px 18px 0 0;transform:translateY(105%);transition:transform .22s ease;z-index:10;display:flex;flex-direction:column;box-shadow:0 -10px 30px rgba(0,0,0,.5)}
+.sheet.open{transform:translateY(0)}
+.sheet .grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 4px}
+.sheet .sc{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px var(--pad) calc(20px + var(--safe-bot))}
+@media (min-width:900px){
+  .sheet{left:auto;right:12px;bottom:12px;width:460px;max-height:calc(100% - 24px);border-radius:18px;border:1px solid var(--line)}
+}
+.sheet h2{margin:6px 0 2px;font-size:20px;line-height:1.25}
+.sheet .sub{color:var(--muted);font-size:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.row button{flex:1 1 auto;text-align:center}
+.photos{display:flex;gap:8px;overflow-x:auto;margin:10px -12px;padding:0 12px;scroll-snap-type:x mandatory}
+.photos::-webkit-scrollbar{display:none}
+.photos img{height:190px;border-radius:12px;scroll-snap-align:start;flex:0 0 auto;background:var(--panel2);object-fit:cover}
+.photos .ph{height:190px;width:260px;border-radius:12px;flex:0 0 auto;background:var(--panel2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px}
+.sv{width:100%;height:230px;border:0;border-radius:12px;background:var(--panel2);display:block;margin-top:8px}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:4px 10px;font-size:14px;margin-top:10px}
+.kv div:nth-child(odd){color:var(--muted)}
+.statuses{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.statuses button{flex:1 1 30%;padding:10px 6px;font-size:14px}
+.statuses button.on{outline:2px solid var(--t1);background:#1f4d33}
+textarea,input[type=date],input[type=text],input[type=url],input[type=password],select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;outline:none}
+textarea{min-height:70px;resize:vertical}
+label.f{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
+.hdr{display:flex;align-items:center;gap:8px}
+.hdr h2{flex:1}
+.x{width:36px;height:36px;border-radius:50%;padding:0;font-size:18px}
+.pill{display:inline-block;padding:2px 8px;border-radius:7px;font-size:12px;font-weight:600;margin-right:6px}
+.T1{background:var(--t1);color:#07130b}.T2{background:var(--t2);color:#041226}.T3{background:var(--t3);color:#0d1116}
+#toast{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(80px + var(--safe-bot));background:#000c;color:#fff;padding:9px 14px;border-radius:10px;font-size:14px;z-index:20;display:none;max-width:90%}
+.fgroup{margin-top:14px}
+.fgroup .lbl{font-size:13px;color:var(--muted);margin-bottom:6px}
+.fgroup .chips{display:flex;flex-wrap:wrap;gap:6px}
+.banner{background:#3a2f10;border:1px solid #6b5518;color:#ffd27a;border-radius:10px;padding:10px;font-size:14px;margin:10px 0}
+.small{font-size:13px;color:var(--muted)}
+.marker{width:22px;height:22px;border-radius:50%;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#07130b;transform:translateY(0)}
+.marker.sel{outline:3px solid var(--accent);width:28px;height:28px}
+.marker.new{opacity:1}.marker.seen{opacity:.75}
+.me{width:16px;height:16px;border-radius:50%;background:#4aa3ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(74,163,255,.3)}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <span class="brand">Lead Finder</span>
+    <input id="search" type="search" placeholder="Search name, street, owner…" autocomplete="off">
+    <span id="count"></span>
+    <button id="settingsBtn" title="Settings">⚙︎</button>
+  </div>
+  <div id="strip">
+    <div class="seg"><button id="segMap" class="on">Map</button><button id="segList">List</button></div>
+    <button class="chip" id="nearBtn">◎ Near me</button>
+    <div class="seg" id="radiusSeg">
+      <button data-r="1">1 mi</button><button data-r="3" class="on">3 mi</button><button data-r="5">5 mi</button><button data-r="10">10 mi</button><button data-r="0">All</button>
+    </div>
+    <button class="chip" id="filterBtn">Filters</button>
+    <button class="chip" id="dueBtn">Due today</button>
+    <button class="chip" id="hideVisitedBtn">Hide visited</button>
+  </div>
+  <div id="main" class="map">
+    <div id="map"></div>
+    <div id="list"></div>
+    <button id="areaBtn">Search this area</button>
+    <div id="fabs">
+      <button id="locBtn" title="Center on me">➤</button>
+      <button id="refreshBtn" title="Refresh leads">↻</button>
+    </div>
+    <div id="routebar"><span id="routeTxt"></span><button id="routeOpen" class="primary">Open route</button><button id="routeClear" class="ghost">Clear</button></div>
+    <div id="toast"></div>
+
+    <!-- lead card -->
+    <div class="sheet" id="card"><div class="grab"></div><div class="sc" id="cardBody"></div></div>
+
+    <!-- filters -->
+    <div class="sheet" id="filters"><div class="grab"></div><div class="sc">
+      <div class="hdr"><h2>Filters</h2><button class="x" data-close="filters">✕</button></div>
+      <div class="fgroup"><div class="lbl">Tier</div><div class="chips" id="fTier"></div></div>
+      <div class="fgroup"><div class="lbl">Business type</div><div class="chips" id="fType"></div></div>
+      <div class="fgroup"><div class="lbl">Region</div><div class="chips" id="fRegion"></div></div>
+      <div class="fgroup"><div class="lbl">Status</div><div class="chips" id="fStatus"></div></div>
+      <div class="fgroup"><div class="lbl">Opened within</div><div class="chips" id="fOpened">
+        <button class="chip on" data-v="0">Any</button><button class="chip" data-v="3">3 mo</button><button class="chip" data-v="6">6 mo</button><button class="chip" data-v="12">12 mo</button></div></div>
+      <div class="fgroup"><div class="lbl">Signals</div><div class="chips">
+        <button class="chip" id="fBeer">Beer/wine carryout</button><button class="chip" id="fPhone">Has phone</button><button class="chip" id="fListing">Has Google listing</button></div></div>
+      <div class="fgroup"><div class="lbl">Sort list by</div><div class="chips" id="fSort">
+        <button class="chip on" data-v="dist">Distance</button><button class="chip" data-v="tier">Tier</button><button class="chip" data-v="opened">Newest</button><button class="chip" data-v="name">Name</button></div></div>
+      <div class="row" style="margin-top:18px"><button class="ghost" id="fReset">Reset</button><button class="primary" data-close="filters">Done</button></div>
+    </div></div>
+
+    <!-- settings -->
+    <div class="sheet" id="settings"><div class="grab"></div><div class="sc">
+      <div class="hdr"><h2>Settings</h2><button class="x" data-close="settings">✕</button></div>
+      <p class="small">Enter these once; they stay on this device only.</p>
+      <label class="f">Apps Script web app URL<input type="url" id="sApi" placeholder="https://script.google.com/macros/s/…/exec"></label>
+      <label class="f">API token<input type="password" id="sTok" placeholder="from setup() log"></label>
+      <label class="f">Google Maps API key<input type="password" id="sKey" placeholder="AIza…"></label>
+      <label class="f">Map ID (optional)<input type="text" id="sMap" placeholder="DEMO_MAP_ID"></label>
+      <div class="row"><button id="sTest" class="ghost">Test connection</button><button id="sSave" class="primary">Save &amp; load</button></div>
+      <div class="row"><button id="sClear" class="ghost">Clear cached leads</button><button id="sFlush" class="ghost">Retry pending saves</button></div>
+      <p class="small" id="sInfo"></p>
+    </div></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/@googlemaps/markerclusterer@2.5.3/dist/index.min.js"></script>
+<script>
+(() => {
+'use strict';
+// ------------------------------------------------------------ state
+const LS = { cfg:'lf.cfg', leads:'lf.leads', ver:'lf.ver', queue:'lf.queue', filters:'lf.filters', route:'lf.route' };
+const STATUSES = ['Not contacted','Visited','Follow-up','Interested','Signed','Dead'];
+const TIER_COLOR = {1:'#2ecc71',2:'#4aa3ff',3:'#8a97a6'};
+const STATUS_GLYPH = {'Visited':'✓','Interested':'★','Follow-up':'⏰','Signed':'$','Dead':'✕'};
+const load = (k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;}};
+const save = (k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}};
+
+let cfg = load(LS.cfg, {});
+let leads = load(LS.leads, []);
+let queue = load(LS.queue, []);
+let route = load(LS.route, []);
+let F = Object.assign({tier:[1,2,3], type:[], region:[], status:[], opened:0, beer:false, phone:false, listing:false, sort:'dist', hideVisited:false, hideDead:true, due:false, q:''}, load(LS.filters, {}));
+let radiusMi = 3;
+let origin = null;         // {lat,lng} used for distance + radius
+let me = null;             // last GPS fix
+let map, markerLib, placesLib, cluster, meMarker, markers = new Map(), selectedId = null, mapReady = false;
+let radiusCircle = null;
+const byId = () => { const m = new Map(); leads.forEach(l => m.set(l.id, l)); return m; };
+let idx = byId();
+
+// ------------------------------------------------------------ utils
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(msg, ms=2200){ const t=$('#toast'); t.textContent=msg; t.style.display='block'; clearTimeout(t._t); t._t=setTimeout(()=>t.style.display='none', ms); }
+function miles(a,b){ if(!a||!b) return null; const R=3958.8, dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180; const s=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(s)); }
+function fmtMi(m){ return m==null?'':(m<10?m.toFixed(1):Math.round(m))+' mi'; }
+const today = () => new Date().toISOString().slice(0,10);
+function monthsSince(d){ if(!d) return null; const t=new Date(d); if(isNaN(t)) return null; const n=new Date(); return (n.getFullYear()-t.getFullYear())*12 + (n.getMonth()-t.getMonth()); }
+function openSheet(id){ document.querySelectorAll('.sheet').forEach(s=>s.classList.toggle('open', s.id===id)); }
+function closeSheets(){ document.querySelectorAll('.sheet').forEach(s=>s.classList.remove('open')); selectedId=null; refreshMarkerStyles(); }
+document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>{ closeSheets(); }));
+
+// ------------------------------------------------------------ filtering
+function visible(l){
+  if(F.hideDead && l.status==='Dead') return false;
+  if(F.hideVisited && (l.status==='Visited')) return false;
+  if(F.tier.length && !F.tier.includes(l.tier)) return false;
+  if(F.type.length && !F.type.includes(l.type)) return false;
+  if(F.region.length && !F.region.includes(l.region)) return false;
+  if(F.status.length && !F.status.includes(l.status)) return false;
+  if(F.opened){ const m=monthsSince(l.opened); if(m==null || m>F.opened) return false; }
+  if(F.beer && !/carryout|C-1|C-2/i.test(l.beerWine||'')) return false;
+  if(F.phone && !l.phone) return false;
+  if(F.listing && !l.placeId) return false;
+  if(F.due && !(l.follow_up && l.follow_up<=today())) return false;
+  if(F.q){ const q=F.q.toLowerCase(); if(!((l.name||'')+' '+(l.street||'')+' '+(l.owner||'')+' '+(l.entity||'')+' '+(l.city||'')).toLowerCase().includes(q)) return false; }
+  return true;
+}
+function current(){
+  const out=[];
+  for(const l of leads){
+    if(!visible(l)) continue;
+    l._d = origin ? miles(origin,l) : null;
+    if(radiusMi && origin && l._d!=null && l._d>radiusMi) continue;
+    out.push(l);
+  }
+  const s=F.sort;
+  out.sort((a,b)=>{
+    if(s==='tier') return a.tier-b.tier || (a._d??1e9)-(b._d??1e9);
+    if(s==='opened') return (b.opened||'').localeCompare(a.opened||'');
+    if(s==='name') return (a.name||'').localeCompare(b.name||'');
+    return (a._d??1e9)-(b._d??1e9);
+  });
+  return out;
+}
+
+// ------------------------------------------------------------ list
+function render(){
+  const cur = current();
+  $('#count').textContent = cur.length + (origin&&radiusMi ? ` within ${radiusMi} mi` : ' leads');
+  const el=$('#list');
+  if(!leads.length){ el.innerHTML='<div class="empty">No leads loaded yet. Open ⚙︎ Settings and enter the API URL, token and Maps key.</div>'; }
+  else if(!cur.length){ el.innerHTML='<div class="empty">Nothing matches. Widen the radius or clear filters.</div>'; }
+  else {
+    const chunk = cur.slice(0,300);
+    el.innerHTML = chunk.map(l=>`
+      <div class="item" data-id="${esc(l.id)}">
+        <div class="pin" style="background:${TIER_COLOR[l.tier]||TIER_COLOR[3]}">${STATUS_GLYPH[l.status]||l.tier}</div>
+        <div class="body">
+          <div class="name">${esc(l.name)}</div>
+          <div class="sub">${esc(l.type)} · ${esc(l.street)}, ${esc(l.city)}</div>
+          <div class="meta">
+            <span class="tag st st-${esc(l.status)}">${esc(l.status)}</span>
+            ${l.opened?`<span class="tag">Opened ${esc(l.opened.slice(0,7))}</span>`:''}
+            ${/carryout/i.test(l.beerWine||'')?'<span class="tag">Beer/wine</span>':''}
+            ${l.phone?'<span class="tag">☎</span>':''}
+            ${l.rival?`<span class="tag">${esc(l.rival)}</span>`:''}
+            ${l.follow_up?`<span class="tag">Follow-up ${esc(l.follow_up)}</span>`:''}
+          </div>
+        </div>
+        <div class="dist"><b>${fmtMi(l._d)}</b>T${l.tier}<br><button class="rt ${route.includes(l.id)?'on':''}" data-rt="${esc(l.id)}" title="Add to route">+</button></div>
+      </div>`).join('') + (cur.length>300?`<div class="empty">Showing 300 of ${cur.length}. Narrow the radius to see the rest.</div>`:'');
+  }
+  renderRouteBar();
+  if(mapReady) renderMarkers(cur);
+}
+$('#list').addEventListener('click', e=>{
+  const rt=e.target.closest('[data-rt]'); if(rt){ toggleRoute(rt.dataset.rt); return; }
+  const it=e.target.closest('.item'); if(it) openCard(it.dataset.id);
+});
+
+// ------------------------------------------------------------ map
+async function initMap(){
+  if(!cfg.mapsKey || mapReady) return;
+  if(!window.google || !google.maps){
+    // official dynamic loader
+    (g=>{var h,a,k,p="The Google Maps JavaScript API",c="google",l="importLibrary",q="__ib__",m=document,b=window;b=b[c]||(b[c]={});var d=b.maps||(b.maps={}),r=new Set,e=new URLSearchParams,u=()=>h||(h=new Promise(async(f,n)=>{await (a=m.createElement("script"));e.set("libraries",[...r]+"");for(k in g)e.set(k.replace(/[A-Z]/g,t=>"_"+t[0].toLowerCase()),g[k]);e.set("callback",c+".maps."+q);a.src=`https://maps.${c}apis.com/maps/api/js?`+e;d[q]=f;a.onerror=()=>h=n(Error(p+" could not load."));a.nonce=m.querySelector("script[nonce]")?.nonce||"";m.head.append(a)}));d[l]?console.warn(p+" only loads once. Ignoring:",g):d[l]=(f,...n)=>r.add(f)&&u().then(()=>d[l](f,...n))})({key:cfg.mapsKey, v:'weekly'});
+  }
+  try{
+    const {Map} = await google.maps.importLibrary('maps');
+    markerLib = await google.maps.importLibrary('marker');
+    placesLib = await google.maps.importLibrary('places');
+    map = new Map($('#map'), { center:{lat:41.0814,lng:-81.519}, zoom:12, mapId: cfg.mapId||'DEMO_MAP_ID', disableDefaultUI:true, zoomControl:true, gestureHandling:'greedy', clickableIcons:false });
+    cluster = new markerClusterer.MarkerClusterer({ map, markers:[], renderer:{ render:({count,position})=>new markerLib.AdvancedMarkerElement({position, content:clusterEl(count), zIndex:1000+count}) } });
+    map.addListener('dragend', ()=>$('#areaBtn').classList.add('show'));
+    map.addListener('zoom_changed', ()=>$('#areaBtn').classList.add('show'));
+    mapReady = true;
+    render();
+    if(me) placeMe();
+  }catch(err){ toast('Map failed to load: '+err.message, 5000); }
+}
+function clusterEl(n){ const d=document.createElement('div'); d.className='marker'; d.style.cssText='width:34px;height:34px;background:#242b33;color:#fff;border-color:#4aa3ff;font-size:13px'; d.textContent=n; return d; }
+function markerEl(l){
+  const d=document.createElement('div'); d.className='marker'+(l.id===selectedId?' sel':'')+(l.status==='Not contacted'?' new':' seen');
+  d.style.background = TIER_COLOR[l.tier]||TIER_COLOR[3];
+  d.textContent = STATUS_GLYPH[l.status]||'';
+  return d;
+}
+function renderMarkers(cur){
+  const want = new Set(cur.map(l=>l.id));
+  const add=[], remove=[];
+  for(const [id,m] of markers){ if(!want.has(id)){ remove.push(m); markers.delete(id); } }
+  for(const l of cur){ if(!markers.has(l.id)){ const m=new markerLib.AdvancedMarkerElement({position:{lat:l.lat,lng:l.lng}, content:markerEl(l), title:l.name}); m.addListener('click',()=>openCard(l.id)); m._id=l.id; markers.set(l.id,m); add.push(m); } }
+  if(remove.length) cluster.removeMarkers(remove, true);
+  if(add.length) cluster.addMarkers(add, true);
+  if(add.length||remove.length) cluster.render();
+  drawRadius();
+}
+function refreshMarkerStyles(){ for(const [id,m] of markers){ const l=idx.get(id); if(l) m.content=markerEl(l); } }
+function drawRadius(){
+  if(!mapReady) return;
+  if(radiusCircle){ radiusCircle.setMap(null); radiusCircle=null; }
+  if(origin && radiusMi){ radiusCircle=new google.maps.Circle({map, center:origin, radius:radiusMi*1609.34, strokeColor:'#4aa3ff', strokeOpacity:.6, strokeWeight:1, fillColor:'#4aa3ff', fillOpacity:.06, clickable:false}); }
+}
+function placeMe(){
+  if(!mapReady||!me) return;
+  if(!meMarker){ const d=document.createElement('div'); d.className='me'; meMarker=new markerLib.AdvancedMarkerElement({map, position:me, content:d, zIndex:2000}); }
+  else meMarker.position=me;
+}
+function fitTo(cur){ if(!mapReady||!cur.length) return; const b=new google.maps.LatLngBounds(); cur.slice(0,400).forEach(l=>b.extend({lat:l.lat,lng:l.lng})); if(origin) b.extend(origin); map.fitBounds(b, 40); }
+
+// ------------------------------------------------------------ location
+function locate(center=true){
+  if(!navigator.geolocation){ toast('No location on this device'); return; }
+  toast('Finding you…', 4000);
+  navigator.geolocation.getCurrentPosition(p=>{
+    me = {lat:p.coords.latitude, lng:p.coords.longitude};
+    origin = me; placeMe();
+    if(center && mapReady){ map.setCenter(me); if(map.getZoom()<13) map.setZoom(radiusMi>=10?11:radiusMi>=5?12:13); }
+    $('#nearBtn').classList.add('on'); $('#areaBtn').classList.remove('show');
+    render();
+    toast(`Located (±${Math.round(p.coords.accuracy)} m)`);
+  }, err=>{ toast('Location failed: '+err.message, 4000); }, {enableHighAccuracy:true, timeout:12000, maximumAge:30000});
+}
+$('#nearBtn').addEventListener('click', ()=>locate(true));
+$('#locBtn').addEventListener('click', ()=>locate(true));
+$('#areaBtn').addEventListener('click', ()=>{ if(!mapReady) return; const c=map.getCenter(); origin={lat:c.lat(),lng:c.lng()}; $('#nearBtn').classList.remove('on'); $('#areaBtn').classList.remove('show'); render(); });
+$('#radiusSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; [...$('#radiusSeg').children].forEach(x=>x.classList.toggle('on',x===b)); radiusMi=Number(b.dataset.r); if(!origin && radiusMi){ locate(true); } render(); });
+
+// ------------------------------------------------------------ view toggle / quick chips
+$('#segMap').addEventListener('click',()=>{ $('#main').className='map'; $('#segMap').classList.add('on'); $('#segList').classList.remove('on'); });
+$('#segList').addEventListener('click',()=>{ $('#main').className='list'; $('#segList').classList.add('on'); $('#segMap').classList.remove('on'); });
+$('#search').addEventListener('input', e=>{ F.q=e.target.value.trim(); save(LS.filters,F); render(); });
+$('#dueBtn').addEventListener('click', ()=>{ F.due=!F.due; $('#dueBtn').classList.toggle('warn',F.due); save(LS.filters,F); render(); });
+$('#hideVisitedBtn').addEventListener('click', ()=>{ F.hideVisited=!F.hideVisited; $('#hideVisitedBtn').classList.toggle('on',F.hideVisited); save(LS.filters,F); render(); });
+$('#filterBtn').addEventListener('click', ()=>{ buildFilters(); openSheet('filters'); });
+$('#settingsBtn').addEventListener('click', ()=>{ $('#sApi').value=cfg.apiUrl||''; $('#sTok').value=cfg.token||''; $('#sKey').value=cfg.mapsKey||''; $('#sMap').value=cfg.mapId||''; $('#sInfo').textContent=`${leads.length} leads cached · ${queue.length} pending saves · data version ${load(LS.ver,'—')}`; openSheet('settings'); });
+$('#refreshBtn').addEventListener('click', ()=>fetchLeads(true));
+
+// ------------------------------------------------------------ filters sheet
+function chips(container, values, selected, onChange, labelFn){
+  container.innerHTML = values.map(v=>`<button class="chip ${selected.includes(v)?'on':''}" data-v="${esc(v)}">${esc(labelFn?labelFn(v):v)}</button>`).join('');
+  container.onclick = e=>{ const b=e.target.closest('.chip'); if(!b) return; const v=b.dataset.v; onChange(v); b.classList.toggle('on'); save(LS.filters,F); render(); };
+}
+function buildFilters(){
+  const uniq = k => [...new Set(leads.map(l=>l[k]).filter(Boolean))].sort();
+  chips($('#fTier'), ['1','2','3'], F.tier.map(String), v=>{ const n=Number(v); F.tier=F.tier.includes(n)?F.tier.filter(x=>x!==n):[...F.tier,n]; }, v=>'Tier '+v);
+  chips($('#fType'), uniq('type'), F.type, v=>{ F.type=F.type.includes(v)?F.type.filter(x=>x!==v):[...F.type,v]; });
+  chips($('#fRegion'), uniq('region'), F.region, v=>{ F.region=F.region.includes(v)?F.region.filter(x=>x!==v):[...F.region,v]; });
+  chips($('#fStatus'), STATUSES, F.status, v=>{ F.status=F.status.includes(v)?F.status.filter(x=>x!==v):[...F.status,v]; if(v==='Dead'&&F.status.includes('Dead')) F.hideDead=false; });
+  const single=(sel,key,cast)=>{ const c=$(sel); [...c.children].forEach(b=>b.classList.toggle('on', String(F[key])===b.dataset.v)); c.onclick=e=>{ const b=e.target.closest('.chip'); if(!b) return; F[key]=cast(b.dataset.v); [...c.children].forEach(x=>x.classList.toggle('on',x===b)); save(LS.filters,F); render(); }; };
+  single('#fOpened','opened',Number); single('#fSort','sort',String);
+  const tog=(sel,key)=>{ const b=$(sel); b.classList.toggle('on',!!F[key]); b.onclick=()=>{ F[key]=!F[key]; b.classList.toggle('on',F[key]); save(LS.filters,F); render(); }; };
+  tog('#fBeer','beer'); tog('#fPhone','phone'); tog('#fListing','listing');
+  $('#fReset').onclick=()=>{ F=Object.assign(F,{tier:[1,2,3],type:[],region:[],status:[],opened:0,beer:false,phone:false,listing:false,sort:'dist',hideVisited:false,hideDead:true,due:false,q:''}); $('#search').value=''; $('#dueBtn').classList.remove('warn'); $('#hideVisitedBtn').classList.remove('on'); save(LS.filters,F); buildFilters(); render(); };
+}
+
+// ------------------------------------------------------------ card
+const placeCache = new Map();
+async function fetchPlace(id){
+  if(placeCache.has(id)) return placeCache.get(id);
+  if(!placesLib) return null;
+  try{
+    const place = new placesLib.Place({id});
+    await place.fetchFields({fields:['photos','regularOpeningHours','nationalPhoneNumber','websiteURI','businessStatus','rating','userRatingCount']});
+    const info = { photos:(place.photos||[]).slice(0,8).map(p=>p.getURI({maxWidth:720,maxHeight:480})), hours:place.regularOpeningHours?.weekdayDescriptions||[], phone:place.nationalPhoneNumber||'', web:place.websiteURI||'', status:place.businessStatus||'', rating:place.rating, ratings:place.userRatingCount };
+    placeCache.set(id, info); return info;
+  }catch(e){ console.warn('Place fetch failed', e); placeCache.set(id,null); return null; }
+}
+function openCard(id){
+  const l=idx.get(id); if(!l) return;
+  selectedId=id; refreshMarkerStyles();
+  if(mapReady && $('#main').classList.contains('map')) map.panTo({lat:l.lat,lng:l.lng});
+  const d = origin?miles(origin,l):null;
+  const q = encodeURIComponent(`${l.name} ${l.street} ${l.city} OH ${l.zip}`);
+  const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}` + (l.placeId?`&destination_place_id=${l.placeId}`:'');
+  const listUrl = l.placeId ? `https://www.google.com/maps/place/?q=place_id:${l.placeId}` : (l.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${q}`);
+  const svUrl = cfg.mapsKey ? `https://www.google.com/maps/embed/v1/streetview?key=${encodeURIComponent(cfg.mapsKey)}&location=${l.lat},${l.lng}&heading=0&pitch=0&fov=90` : '';
+  const kv = [['Address',`${l.street}, ${l.city} ${l.zip}`],['Region',l.region],['Opened',l.opened?`${l.opened}${l.newEst?' · '+l.newEst:''}`:''],['Readiness',l.readiness],['Legal entity',l.entity],['Owner',l.owner],['Sources',l.sources],['Beer/wine',l.beerWine],['SNAP',l.snap],['Rival brands',l.rival?l.rival+' (info only)':''],['Google',l.rating?`${l.rating}★ · ${l.reviews} reviews`:''],['Visited',l.visited_date?`${l.visited_date} (${l.visit_count||1}×)`:''],['Lead ID',l.id]].filter(x=>x[1]);
+  $('#cardBody').innerHTML = `
+    <div class="hdr"><h2>${esc(l.name)}</h2><button class="x" data-close="card">✕</button></div>
+    <div class="sub"><span class="pill T${l.tier}">Tier ${l.tier}</span>${esc(l.type)}${d!=null?` · ${fmtMi(d)} away`:''}</div>
+    <div class="row">
+      <a href="${navUrl}" target="_blank" rel="noopener"><button class="primary">Navigate</button></a>
+      ${l.phone?`<a href="tel:${esc(l.phone.replace(/[^+\d]/g,''))}"><button>Call</button></a>`:''}
+      <a href="${esc(listUrl)}" target="_blank" rel="noopener"><button>${l.placeId?'Google listing':'Find on Google'}</button></a>
+      <button id="cRoute" class="${route.includes(l.id)?'primary':''}">${route.includes(l.id)?'In route ✓':'+ Route'}</button>
+    </div>
+    <div class="photos" id="cPhotos">${l.placeId?'<div class="ph">Loading photos…</div>':'<div class="ph">No Google listing — Street View below</div>'}</div>
+    ${svUrl?`<iframe class="sv" loading="lazy" allowfullscreen referrerpolicy="no-referrer-when-downgrade" src="${svUrl}"></iframe>`:''}
+    <div class="kv">${kv.map(([k,v])=>`<div>${esc(k)}</div><div>${esc(v)}</div>`).join('')}</div>
+    <div id="cHours" class="small" style="margin-top:8px"></div>
+    <div class="statuses" id="cStatus">${STATUSES.map(s=>`<button data-s="${s}" class="${l.status===s?'on':''}">${s}</button>`).join('')}</div>
+    <label class="f">Contact name<input type="text" id="cContact" value="${esc(l.contact_name)}" placeholder="Who you talked to"></label>
+    <label class="f">Notes<textarea id="cNotes" placeholder="What happened, what they need…">${esc(l.notes)}</textarea></label>
+    <label class="f">Follow-up date<input type="date" id="cFollow" value="${esc(l.follow_up)}"></label>
+    <div class="row"><button id="cSave" class="primary">Save</button></div>`;
+  openSheet('card');
+  $('#cardBody').scrollTop=0;
+  $('#cardBody').querySelector('[data-close]').onclick=closeSheets;
+  $('#cRoute').onclick=()=>{ toggleRoute(l.id); openCard(l.id); };
+  let newStatus=l.status;
+  $('#cStatus').onclick=e=>{ const b=e.target.closest('button'); if(!b) return; newStatus=b.dataset.s; [...$('#cStatus').children].forEach(x=>x.classList.toggle('on',x===b)); };
+  $('#cSave').onclick=()=>{
+    const u={ id:l.id, status:newStatus, notes:$('#cNotes').value, follow_up:$('#cFollow').value, contact_name:$('#cContact').value };
+    if(newStatus==='Visited' && l.status!=='Visited'){ u.visited_date=today(); l.visit_count=(l.visit_count||0)+1; }
+    if(newStatus==='Follow-up' && !u.follow_up){ const t=new Date(); t.setDate(t.getDate()+7); u.follow_up=t.toISOString().slice(0,10); }
+    Object.assign(l, u); save(LS.leads, leads);
+    queue.push(u); save(LS.queue, queue);
+    closeSheets(); render(); flush();
+  };
+  if(l.placeId) fetchPlace(l.placeId).then(info=>{
+    if(selectedId!==l.id) return;
+    const ph=$('#cPhotos'); if(!ph) return;
+    if(info && info.photos.length) ph.innerHTML=info.photos.map(u=>`<img src="${u}" alt="">`).join('');
+    else ph.innerHTML='<div class="ph">No photos on the listing</div>';
+    if(info){ const h=$('#cHours'); const bits=[]; if(info.status&&info.status!=='OPERATIONAL') bits.push(`<span style="color:var(--danger)">Google says: ${esc(info.status.replace(/_/g,' ').toLowerCase())}</span>`); if(info.hours.length) bits.push(info.hours.map(esc).join('<br>')); if(info.web) bits.push(`<a href="${esc(info.web)}" target="_blank" rel="noopener">${esc(info.web.replace(/^https?:\/\//,''))}</a>`); h.innerHTML=bits.join('<br>'); }
+  });
+}
+
+// ------------------------------------------------------------ route
+function toggleRoute(id){ route = route.includes(id)?route.filter(x=>x!==id):[...route,id].slice(-10); save(LS.route,route); render(); }
+function renderRouteBar(){ const b=$('#routebar'); b.classList.toggle('show', route.length>0); $('#routeTxt').textContent=`${route.length} stop${route.length===1?'':'s'} in route`; }
+$('#routeClear').onclick=()=>{ route=[]; save(LS.route,route); render(); };
+$('#routeOpen').onclick=()=>{
+  let pts = route.map(id=>idx.get(id)).filter(Boolean);
+  if(!pts.length) return;
+  // nearest-neighbour order from origin (or first stop)
+  let cur = origin || pts[0], ordered=[];
+  while(pts.length){ pts.sort((a,b)=>miles(cur,a)-miles(cur,b)); const n=pts.shift(); ordered.push(n); cur=n; }
+  const p = l=>`${l.lat},${l.lng}`;
+  const dest = ordered.pop();
+  let url = `https://www.google.com/maps/dir/?api=1&destination=${p(dest)}&travelmode=driving`;
+  if(origin) url += `&origin=${origin.lat},${origin.lng}`;
+  if(ordered.length) url += `&waypoints=${ordered.map(p).join('|')}`;
+  window.open(url,'_blank');
+};
+
+// ------------------------------------------------------------ API
+async function api(params){
+  if(!cfg.apiUrl||!cfg.token) throw new Error('Set the API URL and token in Settings');
+  const u = new URL(cfg.apiUrl); u.searchParams.set('token',cfg.token); Object.entries(params).forEach(([k,v])=>u.searchParams.set(k,v));
+  const r = await fetch(u, {redirect:'follow'}); const j = await r.json(); if(j.error) throw new Error(j.error); return j;
+}
+async function fetchLeads(force){
+  try{
+    toast('Loading leads…', 6000);
+    const j = await api({action:'leads'});
+    // keep any locally-pending edits on top of the fresh data
+    const pending = new Map(queue.map(u=>[u.id,u]));
+    leads = j.leads.map(l=>{ const u=pending.get(l.id); return u?Object.assign(l,u):l; });
+    idx = byId(); save(LS.leads, leads); save(LS.ver, j.version);
+    toast(`Loaded ${leads.length} leads`);
+    buildFilters(); render(); if(!origin) fitTo(current());
+  }catch(e){ toast('Load failed: '+e.message, 5000); }
+}
+let flushing=false;
+async function flush(){
+  if(flushing||!queue.length||!navigator.onLine) return;
+  flushing=true;
+  const batch = queue.slice();
+  try{
+    const r = await fetch(cfg.apiUrl, {method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({token:cfg.token, updates:batch})});
+    const j = await r.json();
+    if(j.error) throw new Error(j.error);
+    queue = queue.slice(batch.length); save(LS.queue, queue);
+    toast(batch.length>1?`Saved ${batch.length} updates`:'Saved');
+  }catch(e){ toast('Save queued (offline?) — will retry', 3000); }
+  finally{ flushing=false; }
+}
+window.addEventListener('online', flush);
+setInterval(flush, 30000);
+
+// ------------------------------------------------------------ settings
+$('#sSave').onclick=async()=>{
+  const keyChanged = ($('#sKey').value.trim()!==cfg.mapsKey);
+  cfg={ apiUrl:$('#sApi').value.trim(), token:$('#sTok').value.trim(), mapsKey:$('#sKey').value.trim(), mapId:$('#sMap').value.trim() };
+  save(LS.cfg,cfg); closeSheets();
+  if(keyChanged && mapReady){ location.reload(); return; }
+  await initMap(); await fetchLeads(true);
+};
+$('#sTest').onclick=async()=>{ cfg.apiUrl=$('#sApi').value.trim(); cfg.token=$('#sTok').value.trim(); try{ const j=await api({action:'ping'}); $('#sInfo').textContent='API OK · '+j.time; }catch(e){ $('#sInfo').textContent='API error: '+e.message; } };
+$('#sClear').onclick=()=>{ leads=[]; idx=byId(); localStorage.removeItem(LS.leads); localStorage.removeItem(LS.ver); render(); $('#sInfo').textContent='Cache cleared'; };
+$('#sFlush').onclick=()=>{ flush(); };
+
+// ------------------------------------------------------------ boot
+(async function boot(){
+  $('#search').value=F.q||''; $('#dueBtn').classList.toggle('warn',!!F.due); $('#hideVisitedBtn').classList.toggle('on',!!F.hideVisited);
+  render();
+  if(!cfg.mapsKey||!cfg.apiUrl||!cfg.token){ $('#settingsBtn').click(); return; }
+  await initMap();
+  if(!leads.length) await fetchLeads(true); else { buildFilters(); render(); }
+  locate(true);
+  flush();
+})();
+})();
+</script>
+</body>
+</html>
