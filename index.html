@@ -42,20 +42,20 @@ a{color:var(--t2)}
 
 /* main: side list + map */
 #main{flex:1;position:relative;min-height:0;display:flex}
-#side{flex:0 0 var(--side);display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line);min-height:0;z-index:3}
+#side{flex:0 0 var(--side);width:var(--side);display:flex;flex-direction:column;background:var(--panel);min-height:0;z-index:3;position:relative}
 #sideHdr{display:flex;align-items:center;gap:8px;padding:8px var(--pad);border-bottom:1px solid var(--line);font-size:13px;color:var(--muted)}
 #sideHdr b{color:var(--text);font-size:14px}
 #sideHdr .spacer{flex:1}
 #list{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px var(--pad) calc(70px + var(--safe-bot))}
+#divider{flex:0 0 10px;cursor:col-resize;background:var(--panel);border-left:1px solid var(--line);border-right:1px solid var(--line);display:flex;align-items:center;justify-content:center;touch-action:none;z-index:3}
+#divider::after{content:'';width:3px;height:40px;border-radius:2px;background:var(--line)}
+#main.hideSide #side,#main.hideSide #divider{display:none}
 #mapwrap{flex:1;position:relative;min-width:0}
 #map{position:absolute;inset:0;background:#0b0e12}
-#sideToggle{display:none}
 @media (max-width:700px){
   #main{flex-direction:column}
-  #mapwrap{flex:1}
-  #side{flex:0 0 45%;border-right:0;border-top:1px solid var(--line);order:2}
-  #main.hideSide #side{display:none}
-  #sideToggle{display:inline-flex}
+  #divider{display:none}
+  #side{flex:0 0 45%;width:auto;border-top:1px solid var(--line);order:2}
 }
 .item{display:flex;gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:8px;align-items:flex-start}
 .item.sel{border-color:var(--accent)}
@@ -76,6 +76,8 @@ a{color:var(--t2)}
 /* floating map buttons */
 #fabs{position:absolute;right:12px;bottom:calc(16px + var(--safe-bot));display:flex;flex-direction:column;gap:10px;z-index:4}
 #fabs button{width:48px;height:48px;border-radius:50%;background:var(--panel);border:1px solid var(--line);font-size:20px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+#fabs button.on{background:var(--t2);color:#041226;border-color:var(--t2)}
+#compass{display:none}#compass.show{display:block}
 #areaBtn{position:absolute;left:50%;transform:translateX(-50%);top:12px;z-index:4;background:var(--panel);border:1px solid var(--line);box-shadow:0 4px 14px rgba(0,0,0,.4);display:none}
 #areaBtn.show{display:block}
 
@@ -91,6 +93,11 @@ a{color:var(--t2)}
 .sheet .sc{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px var(--pad) calc(20px + var(--safe-bot))}
 @media (min-width:701px){
   .sheet{left:auto;right:12px;bottom:12px;width:440px;max-height:calc(100% - 24px);border-radius:18px;border:1px solid var(--line)}
+  /* the lead card sits over the list panel so the map stays clear */
+  #card{left:0;right:auto;top:0;bottom:0;width:var(--side);max-height:none;border-radius:0;border:0;border-right:1px solid var(--line);transform:translateX(-105%);box-shadow:none}
+  #card.open{transform:translateX(0)}
+  #card .grab{display:none}
+  #main.hideSide #card{width:min(440px,90vw);border-right:1px solid var(--line)}
 }
 .sheet h2{margin:6px 0 2px;font-size:20px;line-height:1.25}
 .sheet .sub{color:var(--muted);font-size:14px}
@@ -120,15 +127,21 @@ label.f{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
 .fgroup .lbl{font-size:13px;color:var(--muted);margin-bottom:6px}
 .fgroup .chips{display:flex;flex-wrap:wrap;gap:6px}
 .small{font-size:13px;color:var(--muted)}
+/* advanced-marker content */
+.pinEl{position:relative;width:30px;height:40px;cursor:pointer}
+.pinEl svg{display:block;width:30px;height:40px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.pinEl.sel{width:40px;height:54px}.pinEl.sel svg{width:40px;height:54px}
+.meEl{width:34px;height:34px}
+.clusterEl{width:36px;height:36px;border-radius:50%;background:#242b33;border:2px solid #4aa3ff;color:#fff;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.5)}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="strip">
     <span class="brand">Lead Finder</span>
-    <button class="chip" id="nearBtn">◎ Near me</button>
+    <button class="chip" id="listBtn">☰ List</button>
     <div class="seg" id="radiusSeg">
-      <button data-r="1">1 mi</button><button data-r="3" class="on">3 mi</button><button data-r="5">5 mi</button><button data-r="10">10 mi</button><button data-r="0">All</button>
+      <button data-r="1">1 mi</button><button data-r="3">3 mi</button><button data-r="5">5 mi</button><button data-r="10">10 mi</button><button data-r="0" class="on">All</button>
     </div>
     <span class="sep"></span>
     <span id="regionChips" style="display:contents"></span>
@@ -144,12 +157,13 @@ label.f{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
       <div id="sideHdr"><b id="count"></b><span id="countSub"></span><span class="spacer"></span><span id="sortLbl"></span></div>
       <div id="list"></div>
     </div>
+    <div id="divider" title="Drag to resize"></div>
     <div id="mapwrap">
       <div id="map"></div>
       <button id="areaBtn">Search this area</button>
       <div id="fabs">
-        <button id="sideToggle" title="Show/hide list">☰</button>
-        <button id="locBtn" title="Center on me">➤</button>
+        <button id="compass" title="Reset north">🧭</button>
+        <button id="locBtn" title="Follow me (3 mi)">➤</button>
         <button id="refreshBtn" title="Refresh leads">↻</button>
       </div>
       <div id="routebar"><span id="routeTxt"></span><button id="routeOpen" class="primary">Open route</button><button id="routeClear" class="ghost">Clear</button></div>
@@ -181,6 +195,7 @@ label.f{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
       <label class="f">Apps Script web app URL<input type="url" id="sApi" placeholder="https://script.google.com/macros/s/…/exec"></label>
       <label class="f">API token<input type="password" id="sTok" placeholder="from setup() log"></label>
       <label class="f">Google Maps API key<input type="password" id="sKey" placeholder="AIza…"></label>
+      <label class="f">Map ID (optional — enables map rotation; create in Cloud console ▸ Map Management)<input type="text" id="sMap" placeholder="e.g. 1a2b3c4d5e6f7890"></label>
       <div class="row"><button id="sTest" class="ghost">Test connection</button><button id="sSave" class="primary">Save &amp; load</button></div>
       <div class="row"><button id="sClear" class="ghost">Clear cached leads</button><button id="sFlush" class="ghost">Retry pending saves</button></div>
       <p class="small" id="sInfo"></p>
@@ -193,7 +208,7 @@ label.f{display:block;margin-top:12px;font-size:13px;color:var(--muted)}
 (() => {
 'use strict';
 // ------------------------------------------------------------ state
-const LS = { cfg:'lf.cfg', leads:'lf.leads', ver:'lf.ver', queue:'lf.queue', filters:'lf.filters', route:'lf.route' };
+const LS = { cfg:'lf.cfg', leads:'lf.leads', ver:'lf.ver', queue:'lf.queue', filters:'lf.filters', route:'lf.route', side:'lf.side' };
 const STATUSES = ['Not contacted','Visited','Follow-up','Interested','Signed','Dead'];
 const TIER_COLOR = {1:'#2ecc71',2:'#4aa3ff',3:'#8a97a6'};
 const STATUS_GLYPH = {'Visited':'✓','Interested':'★','Follow-up':'⏰','Signed':'$','Dead':'✕'};
@@ -206,10 +221,12 @@ let leads = load(LS.leads, []);
 let queue = load(LS.queue, []);
 let route = load(LS.route, []);
 let F = Object.assign({}, DEFAULT_F, load(LS.filters, {}));
-let radiusMi = 3;
+let radiusMi = 0;          // default: everything loaded; radius is a filter
 let origin = null;         // {lat,lng} used for distance + radius
 let me = null;             // last GPS fix
-let map, placesLib, cluster, meMarker, markers = new Map(), selectedId = null, mapReady = false, radiusCircle = null;
+let follow = false;        // keep map centred on me
+let watchId = null;
+let map, placesLib, cluster, meMarker, markers = new Map(), selectedId = null, mapReady = false, radiusCircle = null, vector = false;
 const byId = () => { const m = new Map(); leads.forEach(l => m.set(l.id, l)); return m; };
 let idx = byId();
 
@@ -228,11 +245,25 @@ function permits(l){
   const out=[];
   if(l.beerWine) out.push(l.beerWine.replace(/\s*\(#.*?\)/,''));
   if(l.tobacco) out.push('Tobacco'+(l.tobacco!=='Yes'?' '+l.tobacco:''));
-  if(l.snap) out.push('SNAP'+(String(l.snap).match(/\d{4}-\d{2}-\d{2}/)?' since '+String(l.snap).match(/\d{4}-\d{2}-\d{2}/)[0]:''));
+  if(l.snap){ const m=String(l.snap).match(/\d{4}-\d{2}-\d{2}/); out.push('SNAP'+(m?' since '+m[0]:'')); }
   if(l.vendorMonth) out.push('Vendor license '+l.vendorMonth);
   if(l.sosDate) out.push('SOS filing '+l.sosDate);
   if(l.propertyDate) out.push('Property purchase '+l.propertyDate);
   return out.join(', ');
+}
+// Trade name first. When only the legal entity is known, show it as a store name (Title Case, no LLC/INC).
+const SMALL = new Set(['and','of','the','&']);
+function displayName(l){
+  let n = String(l.name||'').trim();
+  const legal = String(l.entity||'').trim();
+  if(!n) n = legal;
+  const isLegal = n.toUpperCase()===legal.toUpperCase() || /\b(LLC|INC|LTD|CORP|L\.L\.C\.|INC\.)\b/i.test(n);
+  if(isLegal || n===n.toUpperCase()){
+    n = n.replace(/[,.]?\s*\b(L\.?L\.?C\.?|INC\.?|LTD\.?|CORP\.?|CO\.?|LLP)\b\.?/gi,'').replace(/\s{2,}/g,' ').replace(/[,\s]+$/,'').trim();
+    n = n.toLowerCase().split(' ').map((w,i)=> (i&&SMALL.has(w))?w : w.replace(/^(\w)/,c=>c.toUpperCase()).replace(/^mc(\w)/,(m,c)=>'Mc'+c.toUpperCase()) ).join(' ');
+    n = n.replace(/\b(\d+)(st|nd|rd|th)\b/gi,(m,a,b)=>a+b.toLowerCase());
+  }
+  return n || legal || '(unnamed)';
 }
 
 // ------------------------------------------------------------ filtering
@@ -262,28 +293,29 @@ function current(){
   out.sort((a,b)=>{
     if(s==='tier') return a.tier-b.tier || (a._d??1e9)-(b._d??1e9);
     if(s==='opened') return (b.opened||'').localeCompare(a.opened||'');
-    if(s==='name') return (a.name||'').localeCompare(b.name||'');
+    if(s==='name') return displayName(a).localeCompare(displayName(b));
     return (a._d??1e9)-(b._d??1e9);
   });
   return out;
 }
 
 // ------------------------------------------------------------ list
+let lastCur = [];
 function render(){
-  const cur = current();
+  const cur = lastCur = current();
   $('#count').textContent = cur.length + ' leads';
-  $('#countSub').textContent = origin&&radiusMi ? `within ${radiusMi} mi` : (origin?'any distance':'');
+  $('#countSub').textContent = origin&&radiusMi ? `within ${radiusMi} mi` : (F.region.length? F.region.join(' + ') : 'all areas');
   $('#sortLbl').textContent = {dist:'by distance',tier:'by tier',opened:'newest first',name:'A–Z'}[F.sort]||'';
   const el=$('#list');
   if(!leads.length){ el.innerHTML='<div class="empty">No leads loaded yet. Open ⚙︎ Settings and enter the API URL, token and Maps key.</div>'; }
   else if(!cur.length){ el.innerHTML='<div class="empty">Nothing matches. Widen the radius or clear filters.</div>'; }
   else {
-    const chunk = cur.slice(0,300);
+    const chunk = cur.slice(0,1000);
     el.innerHTML = chunk.map(l=>`
       <div class="item ${l.id===selectedId?'sel':''}" data-id="${esc(l.id)}">
         <div class="pin" style="background:${TIER_COLOR[l.tier]||TIER_COLOR[3]}">${STATUS_GLYPH[l.status]||l.tier}</div>
         <div class="body">
-          <div class="name">${esc(l.name)}</div>
+          <div class="name">${esc(displayName(l))}</div>
           <div class="sub">${esc(l.type)} · ${esc(l.street)}, ${esc(l.city)}</div>
           <div class="meta">
             <span class="tag st st-${esc(l.status)}">${esc(l.status)}</span>
@@ -294,7 +326,7 @@ function render(){
           </div>
         </div>
         <div class="dist"><b>${fmtMi(l._d)}</b>T${l.tier}<br><button class="rt ${route.includes(l.id)?'on':''}" data-rt="${esc(l.id)}" title="Add to route">+</button></div>
-      </div>`).join('') + (cur.length>300?`<div class="empty">Showing 300 of ${cur.length}. Narrow the radius to see the rest.</div>`:'');
+      </div>`).join('') + (cur.length>1000?`<div class="empty">Showing 1000 of ${cur.length}. Narrow the radius or regions to see the rest.</div>`:'');
   }
   renderRouteBar();
   if(mapReady) renderMarkers(cur);
@@ -310,6 +342,7 @@ const MAP_STYLE = [
   {featureType:'transit', stylers:[{visibility:'off'}]},
   {featureType:'administrative.land_parcel', stylers:[{visibility:'off'}]}
 ];
+let markerLib = null;
 async function initMap(){
   if(!cfg.mapsKey || mapReady) return;
   if(!window.google || !google.maps){
@@ -318,82 +351,148 @@ async function initMap(){
   try{
     const {Map} = await google.maps.importLibrary('maps');
     placesLib = await google.maps.importLibrary('places');
-    map = new Map($('#map'), { center:{lat:41.0814,lng:-81.519}, zoom:13, styles:MAP_STYLE, disableDefaultUI:true, zoomControl:true, gestureHandling:'greedy', clickableIcons:false });
-    cluster = new markerClusterer.MarkerClusterer({ map, markers:[], renderer:{ render:({count,position})=>new google.maps.Marker({position, icon:clusterIcon(count), label:{text:String(count), color:'#fff', fontSize:'13px', fontWeight:'700'}, zIndex:1000+count}) } });
+    vector = !!(cfg.mapId && cfg.mapId.trim());
+    const opts = { center:{lat:41.0814,lng:-81.519}, zoom:12, disableDefaultUI:true, zoomControl:true, gestureHandling:'greedy', clickableIcons:false };
+    if(vector){ opts.mapId = cfg.mapId.trim(); opts.headingInteractionEnabled = true; opts.tiltInteractionEnabled = true; markerLib = await google.maps.importLibrary('marker'); }
+    else { opts.styles = MAP_STYLE; }
+    map = new Map($('#map'), opts);
+    cluster = new markerClusterer.MarkerClusterer({ map, markers:[], algorithmOptions:{maxZoom:15}, renderer:{ render:({count,position})=>makeCluster(count,position) } });
+    map.addListener('dragstart', ()=>{ if(follow){ follow=false; $('#locBtn').classList.remove('on'); } });
     map.addListener('dragend', ()=>$('#areaBtn').classList.add('show'));
+    if(vector) map.addListener('heading_changed', ()=>$('#compass').classList.toggle('show', (map.getHeading()||0)!==0));
     mapReady = true;
     render();
     if(me) placeMe();
   }catch(err){ toast('Map failed to load: '+err.message, 5000); }
 }
+// --- pin artwork (teardrop, tier colour, status glyph)
+function pinSvg(fill, glyph, w, h, sel){
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 30 40">`+
+    (sel?`<path d="M15 39.5C15 39.5 2 23 2 14A13 13 0 0 1 28 14C28 23 15 39.5 15 39.5Z" fill="none" stroke="#ffb020" stroke-width="4"/>`:'')+
+    `<path d="M15 39C15 39 3 23 3 14A12 12 0 0 1 27 14C27 23 15 39 15 39Z" fill="${fill}" stroke="#fff" stroke-width="2"/>`+
+    (glyph?`<text x="15" y="18.5" text-anchor="middle" font-family="-apple-system,Helvetica,Arial" font-size="12" font-weight="700" fill="#07130b">${glyph}</text>`:`<circle cx="15" cy="14" r="4" fill="#07130b" opacity=".35"/>`)+`</svg>`;
+}
 const iconCache = new Map();
-function svgIcon(fill, glyph, size, ring){
-  const key=fill+glyph+size+ring;
+function pinIcon(l){ // classic Marker icon
+  const sel=l.id===selectedId, key=l.tier+'|'+l.status+'|'+sel;
   if(iconCache.has(key)) return iconCache.get(key);
-  const r=size/2-2;
-  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`+
-    (ring?`<circle cx="${size/2}" cy="${size/2}" r="${size/2-1}" fill="none" stroke="#ffb020" stroke-width="3"/>`:'')+
-    `<circle cx="${size/2}" cy="${size/2}" r="${r-(ring?3:0)}" fill="${fill}" stroke="#fff" stroke-width="2"/>`+
-    (glyph?`<text x="${size/2}" y="${size/2+4.5}" text-anchor="middle" font-family="-apple-system,Helvetica,Arial" font-size="12" font-weight="700" fill="#07130b">${glyph}</text>`:'')+`</svg>`;
-  const ic={ url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg), scaledSize:new google.maps.Size(size,size), anchor:new google.maps.Point(size/2,size/2) };
+  const w=sel?40:30, h=sel?54:40;
+  const ic={ url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(pinSvg(TIER_COLOR[l.tier]||TIER_COLOR[3], STATUS_GLYPH[l.status]||'', w, h, sel)), scaledSize:new google.maps.Size(w,h), anchor:new google.maps.Point(w/2,h) };
   iconCache.set(key, ic); return ic;
 }
-function clusterIcon(n){ const size=n>99?44:36; const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-2}" fill="#242b33" stroke="#4aa3ff" stroke-width="2"/></svg>`; return { url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg), scaledSize:new google.maps.Size(size,size), anchor:new google.maps.Point(size/2,size/2), labelOrigin:new google.maps.Point(size/2,size/2) }; }
-function leadIcon(l){ const sel=l.id===selectedId; return svgIcon(TIER_COLOR[l.tier]||TIER_COLOR[3], STATUS_GLYPH[l.status]||'', sel?32:24, sel); }
+function pinEl(l){ // advanced marker content
+  const sel=l.id===selectedId; const d=document.createElement('div'); d.className='pinEl'+(sel?' sel':'');
+  d.innerHTML=pinSvg(TIER_COLOR[l.tier]||TIER_COLOR[3], STATUS_GLYPH[l.status]||'', sel?40:30, sel?54:40, sel); return d;
+}
+function makeMarker(l){
+  let m;
+  if(vector){ m=new markerLib.AdvancedMarkerElement({position:{lat:l.lat,lng:l.lng}, content:pinEl(l), title:displayName(l), zIndex:l.status==='Not contacted'?10:5}); m.addListener('click',()=>openCard(l.id)); }
+  else { m=new google.maps.Marker({position:{lat:l.lat,lng:l.lng}, icon:pinIcon(l), title:displayName(l), optimized:true, zIndex:l.status==='Not contacted'?10:5}); m.addListener('click',()=>openCard(l.id)); }
+  m._id=l.id; return m;
+}
+function restyle(m,l){
+  const z = l.id===selectedId?500:(l.status==='Not contacted'?10:5);
+  if(vector){ m.content=pinEl(l); m.zIndex=z; } else { m.setIcon(pinIcon(l)); m.setZIndex(z); }
+}
+function makeCluster(count, position){
+  if(vector){ const d=document.createElement('div'); d.className='clusterEl'; d.textContent=count; if(count>99){d.style.width='44px';d.style.height='44px';} return new markerLib.AdvancedMarkerElement({position, content:d, zIndex:1000+count}); }
+  const size=count>99?44:36; const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"><circle cx="${size/2}" cy="${size/2}" r="${size/2-2}" fill="#242b33" stroke="#4aa3ff" stroke-width="2"/></svg>`;
+  return new google.maps.Marker({position, icon:{ url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(svg), scaledSize:new google.maps.Size(size,size), anchor:new google.maps.Point(size/2,size/2), labelOrigin:new google.maps.Point(size/2,size/2) }, label:{text:String(count), color:'#fff', fontSize:'13px', fontWeight:'700'}, zIndex:1000+count});
+}
 function renderMarkers(cur){
   const want = new Set(cur.map(l=>l.id));
   const add=[], remove=[];
   for(const [id,m] of markers){ if(!want.has(id)){ remove.push(m); markers.delete(id); } }
-  for(const l of cur){ if(!markers.has(l.id)){ const m=new google.maps.Marker({position:{lat:l.lat,lng:l.lng}, icon:leadIcon(l), title:l.name, optimized:true, zIndex:l.status==='Not contacted'?10:5}); m.addListener('click',()=>openCard(l.id)); m._id=l.id; markers.set(l.id,m); add.push(m); } }
+  for(const l of cur){ if(!markers.has(l.id)){ const m=makeMarker(l); markers.set(l.id,m); add.push(m); } }
   if(remove.length) cluster.removeMarkers(remove, true);
   if(add.length) cluster.addMarkers(add, true);
   if(add.length||remove.length) cluster.render();
   drawRadius();
 }
-function refreshMarkerStyles(){ for(const [id,m] of markers){ const l=idx.get(id); if(l){ m.setIcon(leadIcon(l)); m.setZIndex(id===selectedId?500:(l.status==='Not contacted'?10:5)); } } }
+function refreshMarkerStyles(){ for(const [id,m] of markers){ const l=idx.get(id); if(l) restyle(m,l); } }
 function drawRadius(){
   if(!mapReady) return;
   if(radiusCircle){ radiusCircle.setMap(null); radiusCircle=null; }
   if(origin && radiusMi){ radiusCircle=new google.maps.Circle({map, center:origin, radius:radiusMi*1609.34, strokeColor:'#4aa3ff', strokeOpacity:.6, strokeWeight:1, fillColor:'#4aa3ff', fillOpacity:.06, clickable:false}); }
 }
 function fitRadius(){ if(!mapReady) return; drawRadius(); if(radiusCircle) map.fitBounds(radiusCircle.getBounds(), 20); else if(origin) map.setCenter(origin); }
+// --- my position: a person icon
+function meSvg(){ return `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="16" fill="#4aa3ff" stroke="#fff" stroke-width="2.5"/><circle cx="17" cy="12" r="5" fill="#fff"/><path d="M8 27c1-6 5-8 9-8s8 2 9 8" fill="#fff"/></svg>`; }
 function placeMe(){
   if(!mapReady||!me) return;
-  if(!meMarker){ meMarker=new google.maps.Marker({map, position:me, zIndex:2000, icon:{ path:google.maps.SymbolPath.CIRCLE, scale:8, fillColor:'#4aa3ff', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 }}); }
-  else meMarker.setPosition(me);
+  if(!meMarker){
+    if(vector){ const d=document.createElement('div'); d.className='meEl'; d.innerHTML=meSvg(); meMarker=new markerLib.AdvancedMarkerElement({map, position:me, content:d, zIndex:2000}); }
+    else meMarker=new google.maps.Marker({map, position:me, zIndex:2000, icon:{ url:'data:image/svg+xml;charset=UTF-8,'+encodeURIComponent(meSvg()), scaledSize:new google.maps.Size(34,34), anchor:new google.maps.Point(17,17) }});
+  } else if(vector) meMarker.position=me; else meMarker.setPosition(me);
 }
-function fitTo(cur){ if(!mapReady||!cur.length) return; const b=new google.maps.LatLngBounds(); cur.slice(0,400).forEach(l=>b.extend({lat:l.lat,lng:l.lng})); if(origin) b.extend(origin); map.fitBounds(b, 40); }
+function fitTo(cur){ if(!mapReady||!cur.length) return; const b=new google.maps.LatLngBounds(); cur.forEach(l=>b.extend({lat:l.lat,lng:l.lng})); if(origin) b.extend(origin); map.fitBounds(b, 40); }
+function fitMeAnd(l){ // show the lead and me together, without zooming in past street level
+  if(!mapReady) return;
+  if(!me){ map.panTo({lat:l.lat,lng:l.lng}); return; }
+  const b=new google.maps.LatLngBounds(); b.extend(me); b.extend({lat:l.lat,lng:l.lng});
+  map.fitBounds(b, {top:60,bottom:60,left:40,right:40});
+  if(map.getZoom()>16) map.setZoom(16);
+}
+$('#compass').addEventListener('click', ()=>{ if(vector){ map.setHeading(0); map.setTilt(0); } });
 
-// ------------------------------------------------------------ location
-function locate(center=true){
-  if(!navigator.geolocation){ toast('No location on this device'); return; }
-  toast('Finding you…', 4000);
-  navigator.geolocation.getCurrentPosition(p=>{
-    me = {lat:p.coords.latitude, lng:p.coords.longitude};
-    origin = me; placeMe();
-    $('#nearBtn').classList.add('on'); $('#areaBtn').classList.remove('show');
-    render();
-    if(center) fitRadius();
-    toast(`Located (±${Math.round(p.coords.accuracy)} m)`);
-  }, err=>{ toast('Location failed: '+err.message, 4000); if(!origin && mapReady) fitTo(current()); }, {enableHighAccuracy:true, timeout:12000, maximumAge:30000});
+// ------------------------------------------------------------ location (live)
+function startWatch(){
+  if(!navigator.geolocation || watchId!=null) return;
+  watchId = navigator.geolocation.watchPosition(onFix, err=>{ toast('Location: '+err.message, 3000); }, {enableHighAccuracy:true, maximumAge:5000, timeout:20000});
 }
-$('#nearBtn').addEventListener('click', ()=>locate(true));
-$('#locBtn').addEventListener('click', ()=>locate(true));
-$('#areaBtn').addEventListener('click', ()=>{ if(!mapReady) return; const c=map.getCenter(); origin={lat:c.lat(),lng:c.lng()}; $('#nearBtn').classList.remove('on'); $('#areaBtn').classList.remove('show'); render(); drawRadius(); });
-$('#radiusSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; [...$('#radiusSeg').children].forEach(x=>x.classList.toggle('on',x===b)); radiusMi=Number(b.dataset.r); if(!origin && radiusMi){ locate(true); return; } render(); if(radiusMi) fitRadius(); else fitTo(current()); });
-$('#sideToggle').addEventListener('click', ()=>$('#main').classList.toggle('hideSide'));
+let firstFix = true;
+function onFix(p){
+  me = {lat:p.coords.latitude, lng:p.coords.longitude};
+  const moved = !origin || miles(origin, me) > 0.1;
+  if(!origin || (follow && moved)) origin = me;
+  placeMe();
+  if(moved || firstFix) render();
+  if(follow && mapReady){
+    map.panTo(me);
+    if(vector && p.coords.speed!=null && p.coords.speed>2 && p.coords.heading!=null && !isNaN(p.coords.heading)) map.setHeading(p.coords.heading);
+  }
+  if(firstFix){ firstFix=false; if(mapReady){ map.setCenter(me); if(map.getZoom()<12) map.setZoom(12); } toast(`Located (±${Math.round(p.coords.accuracy)} m)`); }
+}
+function followMe(){ // the arrow: 3-mile radius around me, zoomed to fit, and keep following
+  follow = true; $('#locBtn').classList.add('on');
+  if(me){ origin=me; setRadius(3); render(); fitRadius(); }
+  else { setRadius(3); toast('Finding you…', 3000); }
+  startWatch();
+}
+$('#locBtn').addEventListener('click', ()=>{ if(follow){ follow=false; $('#locBtn').classList.remove('on'); toast('Stopped following'); } else followMe(); });
+$('#areaBtn').addEventListener('click', ()=>{ if(!mapReady) return; const c=map.getCenter(); origin={lat:c.lat(),lng:c.lng()}; follow=false; $('#locBtn').classList.remove('on'); $('#areaBtn').classList.remove('show'); if(!radiusMi) setRadius(3); render(); drawRadius(); });
+$('#radiusSeg').addEventListener('click', e=>{ const b=e.target.closest('button'); if(!b) return; setRadius(Number(b.dataset.r)); if(radiusMi && !origin){ origin=me; } render(); if(radiusMi && origin) fitRadius(); else fitTo(current()); });
+function setRadius(mi){ radiusMi=mi; [...$('#radiusSeg').children].forEach(x=>x.classList.toggle('on', Number(x.dataset.r)===mi)); }
+
+// ------------------------------------------------------------ list panel: show/hide + resize
+$('#listBtn').addEventListener('click', ()=>{ const hid=$('#main').classList.toggle('hideSide'); $('#listBtn').classList.toggle('on', !hid); });
+$('#listBtn').classList.add('on');
+(function(){
+  const saved = load(LS.side, null); if(saved) document.documentElement.style.setProperty('--side', saved+'px');
+  const d=$('#divider'); let dragging=false;
+  d.addEventListener('pointerdown', e=>{ dragging=true; d.setPointerCapture(e.pointerId); e.preventDefault(); });
+  d.addEventListener('pointermove', e=>{ if(!dragging) return; const w=Math.max(240, Math.min(window.innerWidth*0.6, e.clientX)); document.documentElement.style.setProperty('--side', w+'px'); });
+  d.addEventListener('pointerup', e=>{ if(!dragging) return; dragging=false; const w=parseInt(getComputedStyle(document.documentElement).getPropertyValue('--side')); save(LS.side, w); });
+})();
 
 // ------------------------------------------------------------ quick chips / regions
 $('#dueBtn').addEventListener('click', ()=>{ F.due=!F.due; $('#dueBtn').classList.toggle('warn',F.due); save(LS.filters,F); render(); });
 $('#hideVisitedBtn').addEventListener('click', ()=>{ F.hideVisited=!F.hideVisited; $('#hideVisitedBtn').classList.toggle('on',F.hideVisited); save(LS.filters,F); render(); });
 $('#filterBtn').addEventListener('click', ()=>{ buildFilters(); openSheet('filters'); });
-$('#settingsBtn').addEventListener('click', ()=>{ $('#sApi').value=cfg.apiUrl||''; $('#sTok').value=cfg.token||''; $('#sKey').value=cfg.mapsKey||''; $('#sInfo').textContent=`${leads.length} leads cached · ${queue.length} pending saves · data version ${load(LS.ver,'—')}`; openSheet('settings'); });
+$('#settingsBtn').addEventListener('click', ()=>{ $('#sApi').value=cfg.apiUrl||''; $('#sTok').value=cfg.token||''; $('#sKey').value=cfg.mapsKey||''; $('#sMap').value=cfg.mapId||''; $('#sInfo').textContent=`${leads.length} leads cached · ${queue.length} pending saves · data version ${load(LS.ver,'—')} · ${vector?'vector map (rotation on)':'standard map'}`; openSheet('settings'); });
 $('#refreshBtn').addEventListener('click', ()=>fetchLeads(true));
 function buildRegions(){
   const regions=[...new Set(leads.map(l=>l.region).filter(Boolean))].sort();
   const c=$('#regionChips');
   c.innerHTML = regions.map(r=>`<button class="chip region ${F.region.includes(r)?'on':''}" data-r="${esc(r)}">${esc(r)}</button>`).join('');
-  c.onclick=e=>{ const b=e.target.closest('.region'); if(!b) return; const r=b.dataset.r; F.region=F.region.includes(r)?F.region.filter(x=>x!==r):[...F.region,r]; b.classList.toggle('on'); save(LS.filters,F); render(); };
+  c.onclick=e=>{
+    const b=e.target.closest('.region'); if(!b) return;
+    const r=b.dataset.r;
+    F.region=F.region.includes(r)?F.region.filter(x=>x!==r):[...F.region,r];
+    b.classList.toggle('on'); save(LS.filters,F);
+    follow=false; $('#locBtn').classList.remove('on');
+    setRadius(0); render(); fitTo(current());
+  };
 }
 
 // ------------------------------------------------------------ filters sheet
@@ -429,15 +528,17 @@ function openCard(id){
   const l=idx.get(id); if(!l) return;
   selectedId=id; refreshMarkerStyles();
   document.querySelectorAll('.item').forEach(e=>e.classList.toggle('sel', e.dataset.id===id));
-  if(mapReady) map.panTo({lat:l.lat,lng:l.lng});
+  follow=false; $('#locBtn').classList.remove('on');
+  fitMeAnd(l);
   const d = origin?miles(origin,l):null;
-  const q = encodeURIComponent(`${l.name} ${l.street} ${l.city} OH ${l.zip}`);
+  const name = displayName(l);
+  const q = encodeURIComponent(`${l.name||l.entity} ${l.street} ${l.city} OH ${l.zip}`);
   const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${l.lat},${l.lng}` + (l.placeId?`&destination_place_id=${l.placeId}`:'');
   const listUrl = l.placeId ? `https://www.google.com/maps/place/?q=place_id:${l.placeId}` : (l.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${q}`);
   const svUrl = cfg.mapsKey ? `https://www.google.com/maps/embed/v1/streetview?key=${encodeURIComponent(cfg.mapsKey)}&location=${l.lat},${l.lng}&heading=0&pitch=0&fov=90` : '';
-  const kv = [['Address',`${l.street}, ${l.city} ${l.zip}`],['Region',l.region],['Opened',l.opened?`${l.opened}${l.newEst?' · '+l.newEst:''}`:''],['Readiness',l.readiness],['Permits & licenses',permits(l)||'None on file'],['Legal entity',l.entity],['Owner',l.owner],['Lead sources',l.sources],['Rival brands',l.rival?l.rival+' (info only)':''],['Google',l.rating?`${l.rating}★ · ${l.reviews} reviews`:''],['Visited',l.visited_date?`${l.visited_date} (${l.visit_count||1}×)`:'']].filter(x=>x[1]);
+  const kv = [['Address',`${l.street}, ${l.city} ${l.zip}`],['Region',l.region],['Opened',l.opened?`${l.opened}${l.newEst?' · '+l.newEst:''}`:''],['Readiness',l.readiness],['Permits & licenses',permits(l)||'None on file'],['Legal entity',l.entity&&l.entity.toUpperCase()!==String(l.name||'').toUpperCase()?l.entity:(l.entity||'')],['Owner',l.owner],['Lead sources',l.sources],['Rival brands',l.rival?l.rival+' (info only)':''],['Google',l.rating?`${l.rating}★ · ${l.reviews} reviews`:''],['Visited',l.visited_date?`${l.visited_date} (${l.visit_count||1}×)`:'']].filter(x=>x[1]);
   $('#cardBody').innerHTML = `
-    <div class="hdr"><h2>${esc(l.name)}</h2><button class="x" data-close="card">✕</button></div>
+    <div class="hdr"><h2>${esc(name)}</h2><button class="x" data-close="card">✕</button></div>
     <div class="sub"><span class="pill T${l.tier}">Tier ${l.tier}</span>${esc(l.type)}${d!=null?` · ${fmtMi(d)} away`:''}</div>
     <div class="row">
       <a href="${navUrl}" target="_blank" rel="noopener"><button class="primary">Navigate</button></a>
@@ -484,12 +585,12 @@ $('#routeClear').onclick=()=>{ route=[]; save(LS.route,route); render(); };
 $('#routeOpen').onclick=()=>{
   let pts = route.map(id=>idx.get(id)).filter(Boolean);
   if(!pts.length) return;
-  let cur = origin || pts[0], ordered=[];
+  let cur = me || origin || pts[0], ordered=[];
   while(pts.length){ pts.sort((a,b)=>miles(cur,a)-miles(cur,b)); const n=pts.shift(); ordered.push(n); cur=n; }
   const p = l=>`${l.lat},${l.lng}`;
   const dest = ordered.pop();
   let url = `https://www.google.com/maps/dir/?api=1&destination=${p(dest)}&travelmode=driving`;
-  if(origin) url += `&origin=${origin.lat},${origin.lng}`;
+  if(me) url += `&origin=${me.lat},${me.lng}`;
   if(ordered.length) url += `&waypoints=${ordered.map(p).join('|')}`;
   window.open(url,'_blank');
 };
@@ -508,7 +609,7 @@ async function fetchLeads(force){
     leads = j.leads.map(l=>{ const u=pending.get(l.id); return u?Object.assign(l,u):l; });
     idx = byId(); save(LS.leads, leads); save(LS.ver, j.version);
     toast(`Loaded ${leads.length} leads`);
-    buildRegions(); buildFilters(); render(); if(!origin) fitTo(current());
+    buildRegions(); buildFilters(); render(); if(!me) fitTo(current());
   }catch(e){ toast('Load failed: '+e.message, 5000); }
 }
 let flushing=false;
@@ -530,11 +631,11 @@ setInterval(flush, 30000);
 
 // ------------------------------------------------------------ settings
 $('#sSave').onclick=async()=>{
-  const keyChanged = ($('#sKey').value.trim()!==(cfg.mapsKey||''));
-  cfg={ apiUrl:$('#sApi').value.trim(), token:$('#sTok').value.trim(), mapsKey:$('#sKey').value.trim() };
+  const mapChanged = ($('#sKey').value.trim()!==(cfg.mapsKey||'')) || ($('#sMap').value.trim()!==(cfg.mapId||''));
+  cfg={ apiUrl:$('#sApi').value.trim(), token:$('#sTok').value.trim(), mapsKey:$('#sKey').value.trim(), mapId:$('#sMap').value.trim() };
   save(LS.cfg,cfg); closeSheets();
-  if(keyChanged && mapReady){ location.reload(); return; }
-  await initMap(); await fetchLeads(true); locate(true);
+  if(mapChanged && mapReady){ location.reload(); return; }
+  await initMap(); await fetchLeads(true); startWatch();
 };
 $('#sTest').onclick=async()=>{ cfg.apiUrl=$('#sApi').value.trim(); cfg.token=$('#sTok').value.trim(); try{ const j=await api({action:'ping'}); $('#sInfo').textContent='API OK · '+j.time; }catch(e){ $('#sInfo').textContent='API error: '+e.message; } };
 $('#sClear').onclick=()=>{ leads=[]; idx=byId(); localStorage.removeItem(LS.leads); localStorage.removeItem(LS.ver); render(); $('#sInfo').textContent='Cache cleared'; };
@@ -547,7 +648,7 @@ $('#sFlush').onclick=()=>{ flush(); };
   if(!cfg.mapsKey||!cfg.apiUrl||!cfg.token){ $('#settingsBtn').click(); return; }
   await initMap();
   if(!leads.length) await fetchLeads(true); else { buildRegions(); buildFilters(); render(); }
-  locate(true);
+  startWatch();
   flush();
 })();
 })();
